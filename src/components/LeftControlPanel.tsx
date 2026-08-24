@@ -6,11 +6,7 @@ import {
   Play, 
   Loader2, 
   Download, 
-  RotateCcw, 
-  FileSpreadsheet, 
-  RefreshCw,
-  FileCheck2,
-  FileText
+  RotateCcw,
 } from 'lucide-react';
 import { TabMode, AppState, FileProcessingItem } from '../types';
 
@@ -24,7 +20,6 @@ interface LeftControlPanelProps {
   onLoadSamples: () => void;
   onStartProcessing: () => void;
   onDownloadZip: () => void;
-  onExportCsv: () => void;
   onReset: () => void;
 }
 
@@ -38,7 +33,6 @@ export const LeftControlPanel: React.FC<LeftControlPanelProps> = ({
   onLoadSamples,
   onStartProcessing,
   onDownloadZip,
-  onExportCsv,
   onReset,
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -278,38 +272,16 @@ export const LeftControlPanel: React.FC<LeftControlPanelProps> = ({
               <span>📥 下載已改名打包檔 ({successCount} 件 .zip)</span>
             </button>
 
-            {/* Sub Action Buttons */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onStartProcessing}
-                className="flex-1 min-touch-target flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl font-bold text-sm text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors"
-                title="重新執行解析"
-              >
-                <RefreshCw className="w-4 h-4" />
-                <span>重新轉檔</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={onExportCsv}
-                className="flex-1 min-touch-target flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl font-bold text-sm text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 transition-colors"
-                title="匯出清冊 CSV"
-              >
-                <FileSpreadsheet className="w-4 h-4 text-emerald-700" />
-                <span>匯出 CSV</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={onReset}
-                className="min-touch-target flex items-center justify-center px-3 py-2 rounded-xl font-bold text-sm text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors"
-                title="清空重置"
-              >
-                <RotateCcw className="w-4 h-4" />
-                <span>清空</span>
-              </button>
-            </div>
+            {/* Reset / New Batch Button */}
+            <button
+              type="button"
+              onClick={onReset}
+              className="min-touch-target flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-sm text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 transition-colors"
+              title="清空檔案並處理新的一批"
+            >
+              <RotateCcw className="w-4 h-4 text-slate-600" />
+              <span>清空，處理下一批檔案</span>
+            </button>
           </div>
         )}
 
@@ -318,7 +290,7 @@ export const LeftControlPanel: React.FC<LeftControlPanelProps> = ({
           <button
             type="button"
             onClick={onReset}
-            className="flex items-center justify-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 py-1 font-medium"
+            className="flex items-center justify-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 py-1 font-medium cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>清空已選取檔案</span>

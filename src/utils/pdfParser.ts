@@ -24,23 +24,24 @@ function escapeRegExp(string: string) {
 }
 
 /**
- * ==================== extract_info_from_pdf_universal ====================
+ * ==================== extract_info_from_pdf_v2 ====================
  * 目標檔名格式：{id_number}_{name}.pdf (例: M120047055_廖大渭.pdf)
  * 
- * 1. 抓取身分證字號 (全字串搜尋 1 位大寫英文 + 1 或 2 + 8 位數字)
- *    re.search(r'[A-Z][1-2]\d{8}', full_text)
+ * 1. 精準抓取身分證字號 (1位大寫英文 + 1或2 + 8位數字)
+ *    id_match = re.search(r'[A-Z][1-2]\d{8}', full_text)
  * 
- * 2. 抓取姓名 - 策略 A：針對篩檢表單 (搜尋 "姓名：xxx" 或 "受檢者：xxx")
- *    支援包含冒號、空白、特殊符號的隔開
- *    re.search(r'(?:姓名|受檢者|患者|病患|被檢查者)[:：\s|]*([\u4e00-\u9fa5]{2,4})', full_text)
+ * 2. 精準抓取姓名 - 解決「姓 名」或「姓   名」與表格邊框問題
+ *    匹配模式：(姓 + 0~4個空白/欄位符號 + 名 + 0~2個冒號/空白) + (2~4字中文姓名)
+ *    name_match = re.search(r'姓\s*名[\s:：|]*([\u4e00-\u9fa5]{2,4})', full_text)
+ *    排除黑名單：["眼底", "攝影", "篩檢", "報告", "說明", "結果", "無明", "顯異", "常無", "地區", "協會"]
  * 
- * 3. 抓取姓名 - 策略 B：針對 VeriSee 影像檔 (身分證號碼緊黏著姓名，如 M120047055廖大渭)
- *    re.search(re.escape(id_number) + r'[\s|_]*([\u4e00-\u9fa5]{2,4})', full_text)
+ * 3. 備用方案 A：若無「姓 名」，尋找「受檢者/患者/病患」等標籤
+ *    alt_match = re.search(r'(?:受檢者|患者|病患|被檢查者)[\s:：|]*([\u4e00-\u9fa5]{2,4})', full_text)
  * 
- * 4. 抓取姓名 - 策略 C：備用字詞過濾 (若上方均未命中，提取排除黑名單後的中文人名)
- *    blacklist = ["說明", "表單", "篩檢", "眼底", "報告", "檢查", "醫師", "同意", "簽名", "兩眼", "右眼", "左眼"]
+ * 4. 備用方案 B：針對 VeriSee 影像檔 (身分證與姓名緊黏，如 M120047055廖大渭)
+ *    sticky_match = re.search(re.escape(id_number) + r'[\s|_]*([\u4e00-\u9fa5]{2,4})', full_text)
  */
-export function extractInfoFromPdfUniversal(fullText: string, filename = 'document.pdf'): {
+export function extractInfoFromPdfV2(fullText: string, filename = 'document.pdf'): {
   id: string | null;
   name: string | null;
   success: boolean;
@@ -50,39 +51,41 @@ export function extractInfoFromPdfUniversal(fullText: string, filename = 'docume
   let id_number: string | null = null;
   let name: string | null = null;
 
-  // 1. 抓取身分證字號 (全字串搜尋 1 位大寫英文 + 1 或 2 + 8 位數字)
+  // 1. 精準抓取身分證字號 (1位大寫英文 + 1或2 + 8位數字)
   const id_match = fullText.match(/[A-Z][1-2]\d{8}/);
   if (id_match) {
     id_number = id_match[0];
   }
 
-  // 2. 抓取姓名 - 策略 A：針對篩檢表單 (搜尋 "姓名：xxx" 或 "受檢者：xxx")
-  // 支援包含冒號、空白、特殊符號的隔開
-  const name_label_match = fullText.match(/(?:姓名|受檢者|患者|病患|被檢查者)[:：\s|]*([\u4e00-\u9fa5]{2,4})/);
-  if (name_label_match && name_label_match[1]) {
-    name = name_label_match[1].trim();
-  }
-
-  // 3. 抓取姓名 - 策略 B：針對 VeriSee 影像檔 (身分證號碼緊黏著姓名，如 M120047055廖大渭)
-  if (!name && id_number) {
-    const sticky_match = fullText.match(new RegExp(escapeRegExp(id_number) + '[\\s|_]*([\\u4e00-\\u9fa5]{2,4})'));
-    if (sticky_match && sticky_match[1]) {
-      name = sticky_match[1].trim();
+  // 2. 精準抓取姓名 - 解決「姓 名」或「姓   名」與表格邊框問題
+  // 匹配模式：(姓 + 0~4個空白/欄位符號 + 名 + 0~2個冒號/空白) + (2~4字中文姓名)
+  const name_match = fullText.match(/姓\s*名[\s:：|]*([\u4e00-\u9fa5]{2,4})/);
+  if (name_match && name_match[1]) {
+    const candidate_name = name_match[1].trim();
+    const blacklist = new Set([
+      '眼底', '攝影', '篩檢', '報告', '說明', '結果', '無明', '顯異', '常無', '地區', '協會'
+    ]);
+    if (!blacklist.has(candidate_name)) {
+      name = candidate_name;
     }
   }
 
-  // 4. 抓取姓名 - 策略 C：備用字詞過濾 (若上方均未命中，提取排除黑名單後的中文人名)
+  // 3. 備用方案 A：若無「姓 名」，尋找「受檢者/患者/病患」等標籤
   if (!name) {
-    const blacklist = new Set([
-      '說明', '表單', '篩檢', '眼底', '報告', '檢查', '醫師', '同意', '簽名', '兩眼', '右眼', '左眼', '您好', '親愛的'
-    ]);
-    const candidates = fullText.match(/[\u4e00-\u9fa5]{2,4}/g);
-    if (candidates) {
-      for (const cand of candidates) {
-        if (!blacklist.has(cand)) {
-          name = cand;
-          break;
-        }
+    const alt_match = fullText.match(/(?:受檢者|患者|病患|被檢查者)[\s:：|]*([\u4e00-\u9fa5]{2,4})/);
+    if (alt_match && alt_match[1]) {
+      name = alt_match[1].trim();
+    }
+  }
+
+  // 4. 備用方案 B：針對 VeriSee 影像檔 (身分證與姓名緊黏，如 M120047055廖大渭)
+  if (!name && id_number) {
+    const sticky_match = fullText.match(new RegExp(escapeRegExp(id_number) + '[\\s|_]*([\\u4e00-\\u9fa5]{2,4})'));
+    if (sticky_match && sticky_match[1]) {
+      const cand = sticky_match[1].trim();
+      const sticky_blacklist = new Set(['眼底', '攝影', '篩檢']);
+      if (!sticky_blacklist.has(cand)) {
+        name = cand;
       }
     }
   }
@@ -108,11 +111,12 @@ export function extractInfoFromPdfUniversal(fullText: string, filename = 'docume
 }
 
 // 別名相容匯出
-export const extractInfoFromPdfText = extractInfoFromPdfUniversal;
-export const extractIdAndNameFromText = extractInfoFromPdfUniversal;
+export const extractInfoFromPdfText = extractInfoFromPdfV2;
+export const extractInfoFromPdfUniversal = extractInfoFromPdfV2;
+export const extractIdAndNameFromText = extractInfoFromPdfV2;
 
 /**
- * Parse a PDF file and extract medical records with universal logic
+ * Parse a PDF file and extract medical records with v2 logic
  */
 export async function parsePdfFile(file: File | Blob, originalFilename?: string): Promise<ExtractedPdfResult> {
   const filename = originalFilename || ('name' in file ? (file as File).name : 'document.pdf');
@@ -148,7 +152,7 @@ export async function parsePdfFile(file: File | Blob, originalFilename?: string)
       fullText = rawString;
     }
 
-    const parsed = extractInfoFromPdfUniversal(fullText, filename);
+    const parsed = extractInfoFromPdfV2(fullText, filename);
 
     return {
       id: parsed.id,

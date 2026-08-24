@@ -10,20 +10,14 @@ export interface FilenameParsedResult {
 }
 
 /**
- * 取得 YYYYMMDD 日期字串
+ * 取得當前點擊轉檔當天之 YYYYMMDD 日期字串 (例：20260824)
  */
-export function getFormattedDate(fileMtime?: number | Date | string | null): string {
-  const d = fileMtime ? new Date(fileMtime) : new Date();
-  if (isNaN(d.getTime())) {
-    const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const dd = String(now.getDate()).padStart(2, '0');
-    return `${yyyy}${mm}${dd}`;
-  }
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
+export function getFormattedDate(targetDate?: Date | number | string | null): string {
+  const d = targetDate ? new Date(targetDate) : new Date();
+  const dateObj = isNaN(d.getTime()) ? new Date() : d;
+  const yyyy = dateObj.getFullYear();
+  const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const dd = String(dateObj.getDate()).padStart(2, '0');
   return `${yyyy}${mm}${dd}`;
 }
 
@@ -31,33 +25,13 @@ export function getFormattedDate(fileMtime?: number | Date | string | null): str
  * ==================== 邏輯 2：非眼底鏡車拍攝 (檔名解析) ====================
  * 目標檔名格式：_古建雄_OD_20260824.pdf
  * 
- * def process_filename_file(filename, file_mtime=None):
- *     ext = os.path.splitext(filename)[1]
- *     
- *     # 1. 抓取姓名
- *     name_match = re.split(r'[-_]', filename)
- *     name = name_match[0].strip() if name_match else None
- *     
- *     # 2. 判斷眼別
- *     eye = None
- *     if "右" in filename or "OD" in filename.upper():
- *         eye = "OD"
- *     elif "左" in filename or "OS" in filename.upper():
- *         eye = "OS"
- *         
- *     # 3. 日期格式 YYYYMMDD
- *     date_str = file_mtime if file_mtime else datetime.datetime.now().strftime('%Y%m%d')
- *     
- *     if name and eye and date_str:
- *         # 產出格式：_姓名_眼別_日期.副檔名 (例: _古建雄_OD_20260824.pdf)
- *         new_name = f"_{name}_{eye}_{date_str}{ext}"
- *         return True, new_name, filename
- *     else:
- *         return False, f"格式不符 (姓名:{name}, 眼別:{eye})", filename
+ * 1. 抓取姓名 (以 - 或 _ 切割取第一部分)
+ * 2. 判斷眼別 (檔名包含「右」或「OD」為 OD；「左」或「OS」為 OS)
+ * 3. 轉檔當天日期 (YYYYMMDD，採用點擊轉檔當天之系統日期)
  */
 export function processFilenameFile(
   filename: string,
-  fileMtime?: number | Date | string | null
+  dateOverride?: string
 ): FilenameParsedResult {
   const ext = filename.includes('.') ? filename.slice(filename.lastIndexOf('.')) : '';
   const baseName = filename.replace(/\.[^/.]+$/, '');
@@ -75,8 +49,8 @@ export function processFilenameFile(
     eye = 'OS';
   }
 
-  // 3. 日期格式 YYYYMMDD
-  const date_str = getFormattedDate(fileMtime);
+  // 3. 日期格式 YYYYMMDD (嚴格採用點擊轉檔當天日期)
+  const date_str = dateOverride || getFormattedDate(new Date());
 
   if (name && eye && date_str) {
     // 產出格式：_姓名_眼別_日期.副檔名 (例: _古建雄_OD_20260824.pdf)

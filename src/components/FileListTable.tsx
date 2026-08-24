@@ -10,26 +10,33 @@ import {
   Trash2, 
   ArrowRight,
   Search,
-  CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Play,
+  Layers
 } from 'lucide-react';
-import { FileProcessingItem } from '../types';
+import { FileProcessingItem, AppState } from '../types';
 
 interface FileListTableProps {
+  appState: AppState;
   items: FileProcessingItem[];
   onEditItem: (item: FileProcessingItem) => void;
   onPreviewItem: (item: FileProcessingItem) => void;
   onDeleteItem: (id: string) => void;
+  onStartProcessing?: () => void;
 }
 
 export const FileListTable: React.FC<FileListTableProps> = ({
+  appState,
   items,
   onEditItem,
   onPreviewItem,
   onDeleteItem,
+  onStartProcessing,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'success' | 'failed'>('all');
+
+  const isPendingState = appState === 'FILES_SELECTED';
 
   const successCount = items.filter(i => i.status === 'success').length;
   const failedCount = items.filter(i => i.status === 'failed').length;
@@ -46,25 +53,130 @@ export const FileListTable: React.FC<FileListTableProps> = ({
     return item.status === statusFilter;
   });
 
-  if (items.length === 0) {
+  // 1. Empty State (IDLE)
+  if (items.length === 0 || appState === 'IDLE') {
     return (
-      <div className="w-full h-full bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center flex flex-col items-center justify-center min-h-[360px]">
+      <div className="w-full h-full bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center flex flex-col items-center justify-center min-h-[380px]">
         <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-700 flex items-center justify-center mb-4">
           <FileText className="w-8 h-8 text-blue-700" />
         </div>
         <h3 className="font-bold text-slate-800 text-lg sm:text-xl mb-1.5">
-          尚未有轉檔結果
+          尚未有待處理檔案
         </h3>
         <p className="text-slate-500 text-sm max-w-sm mb-4 leading-relaxed">
           請於左側上傳待處理檔案或點擊「🧪 載入測試範例」，並按下「⚡ 開始轉檔」按鈕執行自動辨識。
         </p>
         <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-semibold">
-          💡 轉檔後的新舊檔名對照與病患資訊將即時顯示於此
+          💡 轉檔後的新舊檔名對照與病患資訊將於點擊「開始轉檔」後即時呈現於此
         </div>
       </div>
     );
   }
 
+  // 2. Pending Queue State (剛上傳檔案到待處理檔案，尚未開始轉檔)
+  if (isPendingState) {
+    return (
+      <div className="w-full bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+        {/* Top Header Bar for Pending Files */}
+        <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center font-bold">
+              <Layers className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-900 text-base sm:text-lg">
+                待處理檔案清單
+              </h3>
+              <p className="text-slate-500 text-xs">
+                檔案已載入就緒，請點擊左側「⚡ 開始轉檔」執行批次辨識
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
+              已就緒 {items.length} 件
+            </span>
+          </div>
+        </div>
+
+        {/* Informational banner */}
+        <div className="px-4 py-2.5 bg-blue-50/70 border-b border-blue-100 flex items-center justify-between gap-2 text-xs text-blue-900">
+          <div className="flex items-center gap-1.5 font-medium">
+            <Clock className="w-4 h-4 text-blue-700 shrink-0" />
+            <span>目前處於等候轉檔狀態，點擊「⚡ 開始轉檔」後即會呈現辨識結果與新檔名</span>
+          </div>
+          {onStartProcessing && (
+            <button
+              onClick={onStartProcessing}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-700 text-white font-bold hover:bg-blue-800 transition-colors shrink-0"
+              style={{ backgroundColor: '#1565C0' }}
+            >
+              <Play className="w-3 h-3 fill-white" />
+              <span>立即轉檔</span>
+            </button>
+          )}
+        </div>
+
+        {/* Pending File Items List */}
+        <div className="divide-y divide-slate-100 max-h-[480px] overflow-y-auto custom-scrollbar">
+          {items.map((item, index) => {
+            const isPdf = item.fileType.includes('pdf') || item.originalName.endsWith('.pdf');
+            return (
+              <div 
+                key={item.id}
+                className="p-3.5 sm:p-4 transition-colors hover:bg-slate-50 flex items-center justify-between gap-3 bg-white"
+              >
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  {/* File Icon */}
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                    isPdf ? 'bg-rose-100 text-rose-700' : 'bg-blue-100 text-blue-700'
+                  }`}>
+                    {isPdf ? <FileText className="w-5 h-5" /> : <ImageIcon className="w-5 h-5" />}
+                  </div>
+
+                  {/* File Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-400">#{index + 1}</span>
+                      <p className="font-mono text-sm font-bold text-slate-800 truncate">
+                        {item.originalName}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                      <span>{(item.originalSize / 1024).toFixed(1)} KB</span>
+                      <span>•</span>
+                      <span>{isPdf ? 'PDF 文件' : '影像圖檔'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right side: Pending status & Delete */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                    <Clock className="w-3.5 h-3.5 text-slate-400" />
+                    <span>等候轉檔</span>
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => onDeleteItem(item.id)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-700 hover:bg-rose-50 transition-colors"
+                    title="移除此檔案"
+                    aria-label={`移除 ${item.originalName}`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // 3. Processing or Completed State
   return (
     <div className="w-full bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
       
@@ -74,7 +186,7 @@ export const FileListTable: React.FC<FileListTableProps> = ({
         {/* Title & Badge */}
         <div className="flex items-center gap-2.5">
           <h3 className="font-bold text-slate-900 text-lg">
-            成功轉檔清單
+            轉檔清單
           </h3>
           <div className="flex items-center gap-1.5 text-xs font-bold">
             <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300">
@@ -82,7 +194,7 @@ export const FileListTable: React.FC<FileListTableProps> = ({
             </span>
             {failedCount > 0 && (
               <span className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 border border-rose-300">
-                待補填 {failedCount}
+                失敗 {failedCount}
               </span>
             )}
           </div>
@@ -91,7 +203,7 @@ export const FileListTable: React.FC<FileListTableProps> = ({
         {/* Search & Filter Controls */}
         <div className="flex items-center gap-2 flex-wrap">
           {/* Search Box */}
-          <div className="relative min-w-[170px] flex-1 sm:flex-initial">
+          <div className="relative min-w-[150px] flex-1 sm:flex-initial">
             <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -102,7 +214,7 @@ export const FileListTable: React.FC<FileListTableProps> = ({
             />
           </div>
 
-          {/* Status Filter Tabs */}
+          {/* Status Filter Tabs (全部 / 成功 / 失敗) */}
           <div className="flex items-center bg-slate-200 p-0.5 rounded-lg text-xs font-bold">
             <button
               onClick={() => setStatusFilter('all')}
@@ -120,16 +232,14 @@ export const FileListTable: React.FC<FileListTableProps> = ({
             >
               成功 ({successCount})
             </button>
-            {failedCount > 0 && (
-              <button
-                onClick={() => setStatusFilter('failed')}
-                className={`px-2.5 py-1 rounded-md transition-colors ${
-                  statusFilter === 'failed' ? 'bg-rose-700 text-white shadow-xs' : 'text-rose-800 hover:text-rose-950'
-                }`}
-              >
-                待補填 ({failedCount})
-              </button>
-            )}
+            <button
+              onClick={() => setStatusFilter('failed')}
+              className={`px-2.5 py-1 rounded-md transition-colors ${
+                statusFilter === 'failed' ? 'bg-rose-700 text-white shadow-xs' : 'text-rose-800 hover:text-rose-950'
+              }`}
+            >
+              失敗 ({failedCount})
+            </button>
           </div>
         </div>
       </div>
@@ -138,7 +248,7 @@ export const FileListTable: React.FC<FileListTableProps> = ({
       <div className="divide-y divide-slate-100 max-h-[480px] overflow-y-auto custom-scrollbar">
         {filteredItems.length === 0 ? (
           <div className="p-8 text-center text-slate-500 text-sm">
-            沒有符合篩選條件的檔案
+            {statusFilter === 'failed' ? '目前沒有失敗檔案' : '沒有符合篩選條件的檔案'}
           </div>
         ) : (
           filteredItems.map((item, index) => {
@@ -248,7 +358,7 @@ export const FileListTable: React.FC<FileListTableProps> = ({
                     {isFailed && (
                       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-100 text-rose-900">
                         <XCircle className="w-3.5 h-3.5 text-rose-700" />
-                        <span>待補填</span>
+                        <span>失敗</span>
                       </span>
                     )}
                     {isProcessing && (
@@ -264,19 +374,21 @@ export const FileListTable: React.FC<FileListTableProps> = ({
                       </span>
                     )}
 
-                    {/* Manual Edit Button */}
-                    <button
-                      type="button"
-                      onClick={() => onEditItem(item)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors"
-                      title="手動修正資訊"
-                    >
-                      <Edit3 className="w-3.5 h-3.5 text-blue-700" />
-                      <span>修正</span>
-                    </button>
+                    {/* 只有在失敗/未完成狀態 (isFailed) 才顯示「修正」按鈕 */}
+                    {isFailed && (
+                      <button
+                        type="button"
+                        onClick={() => onEditItem(item)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors"
+                        title="手動修正資訊"
+                      >
+                        <Edit3 className="w-3.5 h-3.5 text-blue-700" />
+                        <span>修正</span>
+                      </button>
+                    )}
 
-                    {/* Preview Text / Doc Button */}
-                    {item.rawExtractedText && (
+                    {/* 只有在失敗/未完成狀態 (isFailed) 且有文字時才顯示「預覽」按鈕 */}
+                    {isFailed && item.rawExtractedText && (
                       <button
                         type="button"
                         onClick={() => onPreviewItem(item)}
@@ -311,4 +423,3 @@ export const FileListTable: React.FC<FileListTableProps> = ({
     </div>
   );
 };
-

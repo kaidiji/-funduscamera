@@ -15,9 +15,9 @@ import { PreviewDocModal } from './components/PreviewDocModal';
 import { HelpModal } from './components/HelpModal';
 
 import { parsePdfFile, extractInfoFromPdfText } from './utils/pdfParser';
-import { processFilenameFile } from './utils/filenameParser';
+import { processFilenameFile, getFormattedDate } from './utils/filenameParser';
 import { generateSampleFundusPdfItems, generateSampleCameraItems } from './utils/sampleData';
-import { exportRenamedFilesZip, exportCsvReport } from './utils/zipExporter';
+import { exportRenamedFilesZip } from './utils/zipExporter';
 
 export default function App() {
   // Navigation State
@@ -181,8 +181,9 @@ export default function App() {
 
         } else {
           // ==================== 邏輯 2：非眼底鏡車拍攝 (檔名解析) ====================
-          // 目標檔名格式：_古建雄_OD_20260824.pdf
-          const result = processFilenameFile(item.originalName, item.originalFile?.lastModified);
+          // 目標檔名格式：_古建雄_OD_20260824.pdf (日期嚴格採用點擊轉檔當天)
+          const todayDateStr = getFormattedDate(new Date());
+          const result = processFilenameFile(item.originalName, todayDateStr);
 
           item.extractedName = result.name;
           item.extractedEye = result.eye;
@@ -274,12 +275,6 @@ export default function App() {
     addLog('success', `已成功打包下載 ZIP 檔案 (包含已改名檔案與稽核清冊 CSV)！`);
   };
 
-  // Export CSV
-  const handleExportCsv = () => {
-    exportCsvReport(items);
-    addLog('info', `已成功匯出改名清冊 CSV 報表！`);
-  };
-
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col selection:bg-blue-200">
       
@@ -315,18 +310,19 @@ export default function App() {
               onLoadSamples={handleLoadSamples}
               onStartProcessing={handleStartProcessing}
               onDownloadZip={handleDownloadZip}
-              onExportCsv={handleExportCsv}
               onReset={handleReset}
             />
           </div>
 
-          {/* Right Column: Successfully Converted Files List */}
+          {/* Right Column: Successfully Converted Files List / Pending Files List */}
           <div className="lg:col-span-7">
             <FileListTable
+              appState={appState}
               items={items}
               onEditItem={(item) => setEditingItem(item)}
               onPreviewItem={(item) => setPreviewingItem(item)}
               onDeleteItem={handleDeleteItem}
+              onStartProcessing={handleStartProcessing}
             />
           </div>
 
