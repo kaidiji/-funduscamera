@@ -1,0 +1,6 @@
+{
+  "name": "醫療影像與表單檔名自動處理工具",
+  "description": "專為醫事人員設計的醫療影像與眼底攝影表單 (PDF) 批次自動辨識、解析與檔名標準化工具，支援高齡友善大字體介面與打包下載。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
