@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ShieldCheck, CheckCircle2, AlertCircle, FileText, Camera, Download, HelpCircle } from 'lucide-react';
+import { X, ShieldCheck, CheckCircle2, FileText, Camera, Download, HelpCircle } from 'lucide-react';
 
 interface HelpModalProps {
   isOpen: boolean;
@@ -46,8 +46,31 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
               <span>本機安全隱私保證 (符合資安與個人資料保護法)</span>
             </div>
             <p className="text-sm text-emerald-900 leading-relaxed">
-              本工具所有辨識與批次改名運算均在您當前的瀏覽器本機端執行，表單內容與病患機敏資料（PHI）絕不上傳至任何外部公有伺服器，請安心處理臨床檢驗單與影像。
+              本工具所有辨識與批次改名運算均在您當前的瀏覽器本機端執行，表單內容與病患機敏資料絕不上傳至任何外部伺服器，請安心處理臨床檢驗單與影像。
             </p>
+          </div>
+
+          {/* Naming Rules Summary */}
+          <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 space-y-2.5">
+            <h4 className="font-bold text-blue-950 text-base">
+              核心轉檔規則規範
+            </h4>
+            <div className="text-sm text-blue-900 space-y-1.5 font-mono">
+              <div>
+                <span className="font-bold text-blue-950">1. 眼底攝影表單 (PDF 內文)：</span>
+                <br />
+                格式：<span className="bg-blue-100 px-1.5 py-0.5 rounded font-bold text-blue-950">[身分證字號]_[病患姓名].pdf</span>
+                <br />
+                範例：<span className="text-slate-700 font-bold">M100322762_白進乾.pdf</span> 或 <span className="text-slate-700 font-bold">M120047055_廖大渭.pdf</span>
+              </div>
+              <div className="pt-1 border-t border-blue-200">
+                <span className="font-bold text-blue-950">2. 非眼底鏡車拍攝 (檔名解析)：</span>
+                <br />
+                格式：<span className="bg-blue-100 px-1.5 py-0.5 rounded font-bold text-blue-950">_[病患姓名]_[眼別]_[日期].[副檔名]</span>
+                <br />
+                範例：<span className="text-slate-700 font-bold">_古建雄_OD_20260824.pdf</span> 或 <span className="text-slate-700 font-bold">_陳大文_OS_20260824.jpg</span>
+              </div>
+            </div>
           </div>
 
           {/* Workflow Steps */}
@@ -60,37 +83,26 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
               <p className="font-bold text-slate-900 text-base">步驟 1：選擇功能頁籤與上傳檔案</p>
               <ul className="list-disc list-inside text-sm text-slate-600 mt-1 space-y-1">
-                <li><strong className="text-blue-900">👁️ 眼底攝影表單 (PDF 內文辨識)：</strong>上傳巡迴車或診所眼底檢查單 PDF 檔，系統自動掃描內文字層。</li>
-                <li><strong className="text-blue-900">📷 非眼底鏡車拍攝 (檔名批次處理)：</strong>上傳相機拍攝之混亂命名圖檔 (JPG/PNG/PDF)，系統自動自檔名解析並重組。</li>
+                <li><strong className="text-blue-900">眼底攝影表單 (PDF 內文辨識)：</strong>上傳巡迴車或診所眼底檢查單 PDF 檔，系統自動掃描內文識別身分證與姓名。</li>
+                <li><strong className="text-blue-900">非眼底鏡車拍攝 (檔名批次處理)：</strong>上傳拍攝影像圖檔 (JPG/PNG/PDF)，系統自動自檔名解析姓名、眼別 (OD/OS) 與日期。</li>
               </ul>
             </div>
 
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-              <p className="font-bold text-slate-900 text-base">步驟 2：點擊「🚀 開始自動解析與改名」</p>
+              <p className="font-bold text-slate-900 text-base">步驟 2：點擊「⚡ 開始轉檔」</p>
               <p className="text-sm text-slate-600 mt-1">
                 系統將即時在主控台輸出結果：
-                <br /><span className="text-emerald-700 font-mono font-bold">🟢 [成功] -&gt; 新檔名: 1234567890_王小明.pdf</span>
-                <br /><span className="text-rose-700 font-mono font-bold">🔴 [失敗] -&gt; 無法辨識 (身分證: None, 姓名: 王小明)</span>
+                <br /><span className="text-emerald-700 font-mono font-bold">🟢 [成功] -&gt; 新檔名: M100322762_白進乾.pdf</span>
+                <br /><span className="text-rose-700 font-mono font-bold">🔴 [失敗] -&gt; 無法辨識 (身分證: None, 姓名: 白進乾)</span>
               </p>
             </div>
 
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
               <p className="font-bold text-slate-900 text-base">步驟 3：複核與打包下載</p>
               <p className="text-sm text-slate-600 mt-1">
-                辨識失敗之項目可隨時點擊清單中的「修正」手動補填。確認無誤後點擊綠色「📥 下載已改名打包檔 (.zip)」即可一鍵取得整理好之檔案與稽核清單。
+                辨識失敗或需微調之項目可點擊清單中的「修正」手動補填。完成後點擊綠色「📥 下載已改名打包檔 (.zip)」即可一鍵取得整理完成之檔案與 CSV 稽核清冊。
               </p>
             </div>
-          </div>
-
-          {/* Naming Rules Summary */}
-          <div className="p-4 rounded-xl bg-blue-50 border border-blue-200">
-            <h4 className="font-bold text-blue-950 text-base mb-1.5">
-              標準命名規則
-            </h4>
-            <p className="text-sm text-blue-900 font-mono">
-              預設格式：<span className="font-bold text-blue-950">[身分證字號/病歷號]_[病患姓名].[副檔名]</span>
-              <br />範例：<span className="font-bold text-blue-950">A123456789_王小明.pdf</span> 或 <span className="font-bold text-blue-950">1234567890_王小明.jpg</span>
-            </p>
           </div>
 
         </div>

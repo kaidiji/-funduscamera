@@ -2,7 +2,7 @@ import { FileProcessingItem } from '../types';
 
 /**
  * Generates sample mock files for Tab 1: 眼底攝影表單 (PDF 內文辨識)
- * 格式範例：M120047055_廖大渭.pdf
+ * 格式範例：M100322762_白進乾.pdf / M120047055_廖大渭.pdf
  */
 export function generateSampleFundusPdfItems(): FileProcessingItem[] {
   return [
@@ -20,8 +20,7 @@ export function generateSampleFundusPdfItems(): FileProcessingItem[] {
       errorMessage: null,
       rawExtractedText: `臺北榮民總醫院 眼底攝影數位檢查報告單
 檢查日期：2026-08-24 09:15
-受檢者姓名：廖大渭      性別：男      年齡：58歲
-身分證字號：M120047055   病歷號碼：09812450
+病患識別碼 M100322762白進乾
 檢查項目：眼底彩色攝影 (Fundus Color Photography)
 檢查眼別：雙眼 (OU)
 黃斑部狀態：未見顯著水腫，視神經盤邊緣清晰。`,
@@ -42,8 +41,7 @@ export function generateSampleFundusPdfItems(): FileProcessingItem[] {
       errorMessage: null,
       rawExtractedText: `高雄長庚紀念醫院 眼科部視網膜專科檢驗單
 受檢日期：2026/08/24
-病患姓名：李淑芬      身分證號：B234567890
-病歷編號：1234567890
+身分證字號 B234567890李淑芬
 檢查部位：右眼 (OD)
 診斷：糖尿病視網膜病變 (Non-proliferative Diabetic Retinopathy)`,
       manualOverride: false,
@@ -62,8 +60,8 @@ export function generateSampleFundusPdfItems(): FileProcessingItem[] {
       newName: 'DOC20260824-0012.pdf',
       errorMessage: null,
       rawExtractedText: `衛生福利部雙和醫院 眼底攝影巡迴醫療檢查表記錄
-姓名：陳志強
-身分證：F198765432
+姓名：廖大渭
+身分證：M120047055
 檢查日期：2026年08月24日
 眼別：左眼 (OS)`,
       manualOverride: false,

@@ -1,15 +1,11 @@
 import React from 'react';
-import { Stethoscope, ShieldCheck, HelpCircle, Sliders } from 'lucide-react';
+import { Stethoscope, ShieldCheck, HelpCircle } from 'lucide-react';
 
 interface HeaderProps {
   onOpenHelp: () => void;
-  onOpenSettings: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({
-  onOpenHelp,
-  onOpenSettings,
-}) => {
+export const Header: React.FC<HeaderProps> = ({ onOpenHelp }) => {
   return (
     <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
@@ -48,17 +44,6 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Action Controls */}
           <div className="flex items-center space-x-2.5 self-end md:self-auto">
-            {/* Naming Rules Settings */}
-            <button
-              id="open-settings-btn"
-              onClick={onOpenSettings}
-              className="min-touch-target flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 font-semibold text-sm sm:text-base transition-colors shadow-sm"
-              title="檔名格式設定"
-            >
-              <Sliders className="w-4 h-4 text-slate-600" />
-              <span>規則設定</span>
-            </button>
-
             {/* Help / Guide */}
             <button
               id="open-help-guide-btn"
@@ -75,4 +60,3 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
-

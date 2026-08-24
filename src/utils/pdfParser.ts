@@ -1,5 +1,4 @@
 import * as pdfjsLib from 'pdfjs-dist';
-import { EyeSide } from '../types';
 
 // Set up worker source with CDN fallback
 try {
@@ -19,21 +18,18 @@ export interface ExtractedPdfResult {
   fullText: string;
 }
 
-const NAME_BLACKLIST = new Set([
-  '您好', '說明', '表單', '篩檢', '眼底', '報告', '檢查', '親愛的'
-]);
-
 /**
  * ==================== 邏輯 1：PDF 內文辨識 (眼底攝影表單) ====================
  * 目標檔名格式：M120047055_廖大渭.pdf
  * 
- * 1. 識別身分證字號：[A-Z][1-2]\d{8}
- * 2. 識別姓名：
- *    name_match = re.search(r'(?:姓名|受檢者|患者|被檢查者)[:：]?\s*([\u4e00-\u9fa5]{2,4})', full_text)
- *    若在排除清單中，逐行尋找關鍵字並替換去除後匹配中文姓名
- * 3. 產出格式：{身分證}_{姓名}.pdf
+ * 優先規則：捕捉「病患識別碼」或「身分證」後面「10碼字號 + 中文字」組合
+ * 範例：病患識別碼 M100322762白進乾
+ * combined_match = re.search(r'(?:病患識別碼|身分證字號|病歷號)?\s*([A-Z][1-2]\d{8})([\u4e00-\u9fa5]{2,4})', full_text)
+ * 
+ * 後備規則 1：單獨找身分證 [A-Z][1-2]\d{8}
+ * 後備規則 2：單獨找姓名標籤 (?:姓名|受檢者|患者)[:：\s]*([\u4e00-\u9fa5]{2,4})
  */
-export function extractIdAndNameFromText(fullText: string, filename = 'document.pdf'): {
+export function extractInfoFromPdfText(fullText: string, filename = 'document.pdf'): {
   id: string | null;
   name: string | null;
   success: boolean;
@@ -43,44 +39,29 @@ export function extractIdAndNameFromText(fullText: string, filename = 'document.
   let id_number: string | null = null;
   let name: string | null = null;
 
-  // 1. 識別身分證字號
-  const id_match = fullText.match(/[A-Z][1-2]\d{8}/);
-  if (id_match) {
-    id_number = id_match[0];
-  }
-
-  // 2. 識別姓名
-  const name_match = fullText.match(/(?:姓名|受檢者|患者|被檢查者)[:：]?\s*([\u4e00-\u9fa5]{2,4})/);
-  if (name_match && name_match[1]) {
-    const potential_name = name_match[1].trim();
-    if (!NAME_BLACKLIST.has(potential_name)) {
-      name = potential_name;
+  // 優先規則：捕捉「病患識別碼」或「身分證」後面「10碼字號 + 中文字」組合
+  // 範例：病患識別碼 M100322762白進乾
+  const combined_match = fullText.match(/(?:病患識別碼|身分證字號|病歷號)?\s*([A-Z][1-2]\d{8})([\u4e00-\u9fa5]{2,4})/);
+  
+  if (combined_match && combined_match[1] && combined_match[2]) {
+    id_number = combined_match[1]; // 取得 M100322762
+    name = combined_match[2];      // 取得 白進乾
+  } else {
+    // 後備規則 1：單獨找身分證
+    const id_match = fullText.match(/[A-Z][1-2]\d{8}/);
+    if (id_match) {
+      id_number = id_match[0];
     }
-  }
-
-  if (!name) {
-    const lines = fullText.split('\n');
-    for (const line of lines) {
-      if (['姓名', '受檢者', '患者', '被檢查者'].some(keyword => line.includes(keyword))) {
-        const cleaned = line
-          .replaceAll('姓名', '')
-          .replaceAll('受檢者', '')
-          .replaceAll('患者', '')
-          .replaceAll('被檢查者', '');
-        const cn_match = cleaned.match(/[\u4e00-\u9fa5]{2,4}/);
-        if (cn_match) {
-          const potential_name = cn_match[0].trim();
-          if (!NAME_BLACKLIST.has(potential_name)) {
-            name = potential_name;
-            break;
-          }
-        }
-      }
+    
+    // 後備規則 2：單獨找姓名標籤
+    const name_match = fullText.match(/(?:姓名|受檢者|患者)[:：\s]*([\u4e00-\u9fa5]{2,4})/);
+    if (name_match && name_match[1]) {
+      name = name_match[1].trim();
     }
   }
 
   if (id_number && name) {
-    // 產出格式：身分證_姓名.pdf (例: M120047055_廖大渭.pdf)
+    // 產出格式：身分證_姓名.pdf (例: M100322762_白進乾.pdf)
     const new_name = `${id_number}_${name}.pdf`;
     return {
       id: id_number,
@@ -99,8 +80,11 @@ export function extractIdAndNameFromText(fullText: string, filename = 'document.
   }
 }
 
+// 保持向下相容別名
+export const extractIdAndNameFromText = extractInfoFromPdfText;
+
 /**
- * Parse a PDF file and extract medical records (Matching Python logic 1)
+ * Parse a PDF file and extract medical records
  */
 export async function parsePdfFile(file: File | Blob, originalFilename?: string): Promise<ExtractedPdfResult> {
   const filename = originalFilename || ('name' in file ? (file as File).name : 'document.pdf');
@@ -136,7 +120,7 @@ export async function parsePdfFile(file: File | Blob, originalFilename?: string)
       fullText = rawString;
     }
 
-    const parsed = extractIdAndNameFromText(fullText, filename);
+    const parsed = extractInfoFromPdfText(fullText, filename);
 
     return {
       id: parsed.id,
@@ -153,7 +137,7 @@ export async function parsePdfFile(file: File | Blob, originalFilename?: string)
       name: null,
       newName: filename,
       success: false,
-      errorReason: `PDF 讀取錯誤: ${errorMsg}`,
+      errorReason: `解析失敗: ${errorMsg}`,
       fullText: '',
     };
   }

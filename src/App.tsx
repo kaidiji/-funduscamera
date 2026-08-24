@@ -3,8 +3,7 @@ import {
   TabMode, 
   AppState, 
   FileProcessingItem, 
-  ProcessingLog, 
-  NamingTemplateConfig 
+  ProcessingLog 
 } from './types';
 import { Header } from './components/Header';
 import { TabSwitcher } from './components/TabSwitcher';
@@ -12,17 +11,16 @@ import { LeftControlPanel } from './components/LeftControlPanel';
 import { FileListTable } from './components/FileListTable';
 import { LogConsole } from './components/LogConsole';
 import { ManualEditModal } from './components/ManualEditModal';
-import { FormatSettingsModal } from './components/FormatSettingsModal';
 import { PreviewDocModal } from './components/PreviewDocModal';
 import { HelpModal } from './components/HelpModal';
 
-import { parsePdfFile, extractIdAndNameFromText } from './utils/pdfParser';
-import { processFilenameFile, generateNewFilename } from './utils/filenameParser';
+import { parsePdfFile, extractInfoFromPdfText } from './utils/pdfParser';
+import { processFilenameFile } from './utils/filenameParser';
 import { generateSampleFundusPdfItems, generateSampleCameraItems } from './utils/sampleData';
 import { exportRenamedFilesZip, exportCsvReport } from './utils/zipExporter';
 
 export default function App() {
-  // Navigation & Preferences State
+  // Navigation State
   const [activeTab, setActiveTab] = useState<TabMode>('FUNDUS_PDF');
   
   // Processing & State Machine State
@@ -32,21 +30,10 @@ export default function App() {
   const [progressPercent, setProgressPercent] = useState<number>(0);
   const [currentProcessingName, setCurrentProcessingName] = useState<string>('');
 
-  // Naming Pattern Configuration (Optional for custom tweaking)
-  const [namingConfig, setNamingConfig] = useState<NamingTemplateConfig>({
-    format: 'ID_NAME',
-    customPattern: '{id}_{name}',
-    preserveExtension: true,
-    eyeFormat: 'OD_OS',
-    dateFormat: 'YYYYMMDD',
-    fallbackPrefix: '待查病歷',
-  });
-
   // Modals
   const [editingItem, setEditingItem] = useState<FileProcessingItem | null>(null);
   const [previewingItem, setPreviewingItem] = useState<FileProcessingItem | null>(null);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Helper to add logs
   const addLog = useCallback((type: ProcessingLog['type'], message: string, targetFilename?: string, details?: string) => {
@@ -131,7 +118,7 @@ export default function App() {
       try {
         if (activeTab === 'FUNDUS_PDF') {
           // ==================== 邏輯 1：PDF 內文辨識 (眼底攝影表單) ====================
-          // 目標檔名格式：M120047055_廖大渭.pdf
+          // 目標檔名格式：M120047055_廖大渭.pdf 或 M100322762_白進乾.pdf
           let result: {
             id: string | null;
             name: string | null;
@@ -145,7 +132,7 @@ export default function App() {
             result = await parsePdfFile(item.originalFile, item.originalName);
             item.rawExtractedText = result.fullText;
           } else if (item.rawExtractedText) {
-            const parsed = extractIdAndNameFromText(item.rawExtractedText, item.originalName);
+            const parsed = extractInfoFromPdfText(item.rawExtractedText, item.originalName);
             result = {
               id: parsed.id,
               name: parsed.name,
@@ -172,7 +159,7 @@ export default function App() {
             item.status = 'success';
             item.errorMessage = null;
 
-            // 🟢 [成功] -> 新檔名: M120047055_廖大渭.pdf
+            // 🟢 [成功] -> 新檔名: M100322762_白進乾.pdf
             addLog(
               'success',
               `辨識完成 [${item.originalName}] (身分證: ${result.id}, 姓名: ${result.name})`,
@@ -293,33 +280,12 @@ export default function App() {
     addLog('info', `已成功匯出改名清冊 CSV 報表！`);
   };
 
-  // Apply format config changes to existing items
-  const handleSaveConfig = (newConfig: NamingTemplateConfig) => {
-    setNamingConfig(newConfig);
-    
-    // Re-generate new names for successful items
-    setItems(prev => prev.map(item => {
-      if (item.status === 'success') {
-        if (activeTab === 'FUNDUS_PDF' && item.extractedId && item.extractedName) {
-          return { ...item, newName: `${item.extractedId}_${item.extractedName}.pdf` };
-        } else if (activeTab === 'OTHER_CAMERA' && item.extractedName && item.extractedEye) {
-          const ext = item.originalName.includes('.') ? item.originalName.slice(item.originalName.lastIndexOf('.')) : '';
-          return { ...item, newName: `_${item.extractedName}_${item.extractedEye}_${item.extractedDate || '20260824'}${ext}` };
-        }
-      }
-      return item;
-    }));
-
-    addLog('info', `已更新檔名格式規則，並重新套用至現有已辨識項目。`);
-  };
-
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col selection:bg-blue-200">
       
       {/* 1. Header Area */}
       <Header
         onOpenHelp={() => setIsHelpOpen(true)}
-        onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
       {/* Main Dashboard Container */}
@@ -396,13 +362,6 @@ export default function App() {
         activeTab={activeTab}
         onClose={() => setEditingItem(null)}
         onSave={handleSaveManualEdit}
-      />
-
-      <FormatSettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        config={namingConfig}
-        onSaveConfig={handleSaveConfig}
       />
 
       <PreviewDocModal
