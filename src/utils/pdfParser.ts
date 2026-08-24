@@ -18,18 +18,29 @@ export interface ExtractedPdfResult {
   fullText: string;
 }
 
+// 輔助跳脫正規表達式特殊字元 (如 Python re.escape)
+function escapeRegExp(string: string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /**
- * ==================== 邏輯 1：PDF 內文辨識 (眼底攝影表單) ====================
- * 目標檔名格式：M120047055_廖大渭.pdf
+ * ==================== extract_info_from_pdf_universal ====================
+ * 目標檔名格式：{id_number}_{name}.pdf (例: M120047055_廖大渭.pdf)
  * 
- * 優先規則：捕捉「病患識別碼」或「身分證」後面「10碼字號 + 中文字」組合
- * 範例：病患識別碼 M100322762白進乾
- * combined_match = re.search(r'(?:病患識別碼|身分證字號|病歷號)?\s*([A-Z][1-2]\d{8})([\u4e00-\u9fa5]{2,4})', full_text)
+ * 1. 抓取身分證字號 (全字串搜尋 1 位大寫英文 + 1 或 2 + 8 位數字)
+ *    re.search(r'[A-Z][1-2]\d{8}', full_text)
  * 
- * 後備規則 1：單獨找身分證 [A-Z][1-2]\d{8}
- * 後備規則 2：單獨找姓名標籤 (?:姓名|受檢者|患者)[:：\s]*([\u4e00-\u9fa5]{2,4})
+ * 2. 抓取姓名 - 策略 A：針對篩檢表單 (搜尋 "姓名：xxx" 或 "受檢者：xxx")
+ *    支援包含冒號、空白、特殊符號的隔開
+ *    re.search(r'(?:姓名|受檢者|患者|病患|被檢查者)[:：\s|]*([\u4e00-\u9fa5]{2,4})', full_text)
+ * 
+ * 3. 抓取姓名 - 策略 B：針對 VeriSee 影像檔 (身分證號碼緊黏著姓名，如 M120047055廖大渭)
+ *    re.search(re.escape(id_number) + r'[\s|_]*([\u4e00-\u9fa5]{2,4})', full_text)
+ * 
+ * 4. 抓取姓名 - 策略 C：備用字詞過濾 (若上方均未命中，提取排除黑名單後的中文人名)
+ *    blacklist = ["說明", "表單", "篩檢", "眼底", "報告", "檢查", "醫師", "同意", "簽名", "兩眼", "右眼", "左眼"]
  */
-export function extractInfoFromPdfText(fullText: string, filename = 'document.pdf'): {
+export function extractInfoFromPdfUniversal(fullText: string, filename = 'document.pdf'): {
   id: string | null;
   name: string | null;
   success: boolean;
@@ -39,29 +50,45 @@ export function extractInfoFromPdfText(fullText: string, filename = 'document.pd
   let id_number: string | null = null;
   let name: string | null = null;
 
-  // 優先規則：捕捉「病患識別碼」或「身分證」後面「10碼字號 + 中文字」組合
-  // 範例：病患識別碼 M100322762白進乾
-  const combined_match = fullText.match(/(?:病患識別碼|身分證字號|病歷號)?\s*([A-Z][1-2]\d{8})([\u4e00-\u9fa5]{2,4})/);
-  
-  if (combined_match && combined_match[1] && combined_match[2]) {
-    id_number = combined_match[1]; // 取得 M100322762
-    name = combined_match[2];      // 取得 白進乾
-  } else {
-    // 後備規則 1：單獨找身分證
-    const id_match = fullText.match(/[A-Z][1-2]\d{8}/);
-    if (id_match) {
-      id_number = id_match[0];
+  // 1. 抓取身分證字號 (全字串搜尋 1 位大寫英文 + 1 或 2 + 8 位數字)
+  const id_match = fullText.match(/[A-Z][1-2]\d{8}/);
+  if (id_match) {
+    id_number = id_match[0];
+  }
+
+  // 2. 抓取姓名 - 策略 A：針對篩檢表單 (搜尋 "姓名：xxx" 或 "受檢者：xxx")
+  // 支援包含冒號、空白、特殊符號的隔開
+  const name_label_match = fullText.match(/(?:姓名|受檢者|患者|病患|被檢查者)[:：\s|]*([\u4e00-\u9fa5]{2,4})/);
+  if (name_label_match && name_label_match[1]) {
+    name = name_label_match[1].trim();
+  }
+
+  // 3. 抓取姓名 - 策略 B：針對 VeriSee 影像檔 (身分證號碼緊黏著姓名，如 M120047055廖大渭)
+  if (!name && id_number) {
+    const sticky_match = fullText.match(new RegExp(escapeRegExp(id_number) + '[\\s|_]*([\\u4e00-\\u9fa5]{2,4})'));
+    if (sticky_match && sticky_match[1]) {
+      name = sticky_match[1].trim();
     }
-    
-    // 後備規則 2：單獨找姓名標籤
-    const name_match = fullText.match(/(?:姓名|受檢者|患者)[:：\s]*([\u4e00-\u9fa5]{2,4})/);
-    if (name_match && name_match[1]) {
-      name = name_match[1].trim();
+  }
+
+  // 4. 抓取姓名 - 策略 C：備用字詞過濾 (若上方均未命中，提取排除黑名單後的中文人名)
+  if (!name) {
+    const blacklist = new Set([
+      '說明', '表單', '篩檢', '眼底', '報告', '檢查', '醫師', '同意', '簽名', '兩眼', '右眼', '左眼', '您好', '親愛的'
+    ]);
+    const candidates = fullText.match(/[\u4e00-\u9fa5]{2,4}/g);
+    if (candidates) {
+      for (const cand of candidates) {
+        if (!blacklist.has(cand)) {
+          name = cand;
+          break;
+        }
+      }
     }
   }
 
   if (id_number && name) {
-    // 產出格式：身分證_姓名.pdf (例: M100322762_白進乾.pdf)
+    // 產出格式：身分證_姓名.pdf (例: M120047055_廖大渭.pdf)
     const new_name = `${id_number}_${name}.pdf`;
     return {
       id: id_number,
@@ -80,11 +107,12 @@ export function extractInfoFromPdfText(fullText: string, filename = 'document.pd
   }
 }
 
-// 保持向下相容別名
-export const extractIdAndNameFromText = extractInfoFromPdfText;
+// 別名相容匯出
+export const extractInfoFromPdfText = extractInfoFromPdfUniversal;
+export const extractIdAndNameFromText = extractInfoFromPdfUniversal;
 
 /**
- * Parse a PDF file and extract medical records
+ * Parse a PDF file and extract medical records with universal logic
  */
 export async function parsePdfFile(file: File | Blob, originalFilename?: string): Promise<ExtractedPdfResult> {
   const filename = originalFilename || ('name' in file ? (file as File).name : 'document.pdf');
@@ -120,7 +148,7 @@ export async function parsePdfFile(file: File | Blob, originalFilename?: string)
       fullText = rawString;
     }
 
-    const parsed = extractInfoFromPdfText(fullText, filename);
+    const parsed = extractInfoFromPdfUniversal(fullText, filename);
 
     return {
       id: parsed.id,
@@ -137,7 +165,7 @@ export async function parsePdfFile(file: File | Blob, originalFilename?: string)
       name: null,
       newName: filename,
       success: false,
-      errorReason: `解析失敗: ${errorMsg}`,
+      errorReason: `PDF 解析異常: ${errorMsg}`,
       fullText: '',
     };
   }
