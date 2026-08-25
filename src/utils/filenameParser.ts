@@ -23,7 +23,7 @@ export function getFormattedDate(targetDate?: Date | number | string | null): st
 
 /**
  * ==================== 邏輯 2：非眼底鏡車拍攝 (檔名解析) ====================
- * 目標檔名格式：_古建雄_OD_20260824.pdf
+ * 目標檔名格式：_古建雄_OD_20260824.pdf (無論原始為 JPG、PNG 或是 PDF，改完檔名一律輸出為 .pdf)
  * 
  * 1. 抓取姓名 (以 - 或 _ 切割取第一部分)
  * 2. 判斷眼別 (檔名包含「右」或「OD」為 OD；「左」或「OS」為 OS)
@@ -33,7 +33,6 @@ export function processFilenameFile(
   filename: string,
   dateOverride?: string
 ): FilenameParsedResult {
-  const ext = filename.includes('.') ? filename.slice(filename.lastIndexOf('.')) : '';
   const baseName = filename.replace(/\.[^/.]+$/, '');
 
   // 1. 抓取姓名
@@ -53,8 +52,8 @@ export function processFilenameFile(
   const date_str = dateOverride || getFormattedDate(new Date());
 
   if (name && eye && date_str) {
-    // 產出格式：_姓名_眼別_日期.副檔名 (例: _古建雄_OD_20260824.pdf)
-    const new_name = `_${name}_${eye}_${date_str}${ext}`;
+    // 產出格式：_姓名_眼別_日期.pdf (一律輸出為 .pdf 格式)
+    const new_name = `_${name}_${eye}_${date_str}.pdf`;
     return {
       name,
       eye,
@@ -67,7 +66,7 @@ export function processFilenameFile(
       name,
       eye,
       dateStr: date_str,
-      newName: filename,
+      newName: `${baseName}.pdf`,
       success: false,
       errorReason: `格式不符 (姓名:${name || 'None'}, 眼別:${eye || 'None'})`,
     };
@@ -75,7 +74,7 @@ export function processFilenameFile(
 }
 
 /**
- * 輔助產生格式化新檔名
+ * 輔助產生格式化新檔名（一律輸出為 .pdf）
  */
 export function generateNewFilename(
   info: {
@@ -86,11 +85,8 @@ export function generateNewFilename(
     originalName: string;
   },
   template: 'ID_NAME' | 'ID_NAME_EYE' | 'DATE_ID_NAME' | 'ID_NAME_DATE' | 'CUSTOM' = 'ID_NAME',
-  customPattern = '{id}_{name}',
-  originalExtension?: string
+  customPattern = '{id}_{name}'
 ): string {
-  const ext = originalExtension || (info.originalName.includes('.') ? info.originalName.slice(info.originalName.lastIndexOf('.')) : '');
-  
   const idPart = info.id || '未知身分證';
   const namePart = info.name || '未知姓名';
   const eyePart = info.eye ? (info.eye === 'OD' ? 'OD' : info.eye === 'OS' ? 'OS' : 'OU') : '';
@@ -100,11 +96,11 @@ export function generateNewFilename(
 
   switch (template) {
     case 'ID_NAME':
-      // M120047055_廖大渭.pdf
+      // M120047055_廖大渭
       generatedBase = `${idPart}_${namePart}`;
       break;
     case 'ID_NAME_EYE':
-      // _姓名_眼別_日期.ext
+      // _姓名_眼別_日期
       generatedBase = `_${namePart}_${eyePart || 'OD'}_${datePart}`;
       break;
     case 'DATE_ID_NAME':
@@ -124,5 +120,5 @@ export function generateNewFilename(
   }
 
   const sanitized = generatedBase.replace(/[\\/:*?"<>|]/g, '_').trim();
-  return `${sanitized}${ext}`;
+  return `${sanitized}.pdf`;
 }

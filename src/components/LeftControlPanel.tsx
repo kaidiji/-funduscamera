@@ -24,7 +24,6 @@ interface LeftControlPanelProps {
 }
 
 export const LeftControlPanel: React.FC<LeftControlPanelProps> = ({
-  activeTab,
   appState,
   items,
   progressPercent,
@@ -43,9 +42,7 @@ export const LeftControlPanel: React.FC<LeftControlPanelProps> = ({
   const hasFiles = items.length > 0;
   const successCount = items.filter(i => i.status === 'success').length;
 
-  const acceptedFormats = activeTab === 'FUNDUS_PDF' 
-    ? '.pdf,application/pdf' 
-    : '.pdf,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf';
+  const acceptedFormats = '.pdf,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf';
 
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
@@ -74,9 +71,6 @@ export const LeftControlPanel: React.FC<LeftControlPanelProps> = ({
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const filesArray: File[] = Array.from(e.dataTransfer.files);
       const filtered = filesArray.filter((file: File) => {
-        if (activeTab === 'FUNDUS_PDF') {
-          return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-        }
         return (
           file.type === 'application/pdf' ||
           file.name.toLowerCase().endsWith('.pdf') ||
@@ -171,7 +165,7 @@ export const LeftControlPanel: React.FC<LeftControlPanelProps> = ({
           點擊選擇檔案 或 拖曳至此
         </p>
         <p className="text-slate-500 text-xs sm:text-sm mb-3">
-          {activeTab === 'FUNDUS_PDF' ? '僅支援 PDF 格式 (眼底表單)' : '支援 PDF、JPG、PNG 影像格式'}
+          支援上傳 PDF 或 JPG/PNG 檔案，改名後一律輸出為 PDF 文件
         </p>
 
         <div className="flex items-center gap-2 flex-wrap justify-center" onClick={(e) => e.stopPropagation()}>
@@ -269,7 +263,7 @@ export const LeftControlPanel: React.FC<LeftControlPanelProps> = ({
               style={{ backgroundColor: '#2E7D32' }}
             >
               <Download className="w-5 h-5" />
-              <span>📥 下載已改名打包檔 ({successCount} 件 .zip)</span>
+              <span>📥 下載已改名打包檔 ({successCount} 件 PDF .zip)</span>
             </button>
 
             {/* Reset / New Batch Button */}
