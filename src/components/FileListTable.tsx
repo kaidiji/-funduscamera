@@ -64,10 +64,10 @@ export const FileListTable: React.FC<FileListTableProps> = ({
           尚未有待處理檔案
         </h3>
         <p className="text-slate-500 text-sm max-w-sm mb-4 leading-relaxed">
-          請於左側上傳待處理檔案或點擊「🧪 載入測試範例」，並按下「⚡ 開始轉檔」按鈕執行自動辨識。
+          請於左側上傳或拖入待處理檔案，並按下「⚡ 開始轉檔」按鈕執行自動辨識。
         </p>
         <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-semibold">
-          💡 轉檔後的新舊檔名對照與病患資訊將於點擊「開始轉檔」後即時呈現於此
+          💡 轉檔後的新舊檔名對照與病患資訊將即時呈現於此
         </div>
       </div>
     );
@@ -101,21 +101,11 @@ export const FileListTable: React.FC<FileListTableProps> = ({
         </div>
 
         {/* Informational banner */}
-        <div className="px-4 py-2.5 bg-blue-50/70 border-b border-blue-100 flex items-center justify-between gap-2 text-xs text-blue-900">
+        <div className="px-4 py-2.5 bg-blue-50/70 border-b border-blue-100 flex items-center gap-2 text-xs text-blue-900">
           <div className="flex items-center gap-1.5 font-medium">
             <Clock className="w-4 h-4 text-blue-700 shrink-0" />
-            <span>目前處於等候轉檔狀態，點擊「⚡ 開始轉檔」後即會呈現辨識結果與新檔名</span>
+            <span>目前處於等候轉檔狀態，點擊左側「⚡ 開始轉檔」後即會呈現辨識結果</span>
           </div>
-          {onStartProcessing && (
-            <button
-              onClick={onStartProcessing}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-700 text-white font-bold hover:bg-blue-800 transition-colors shrink-0"
-              style={{ backgroundColor: '#1565C0' }}
-            >
-              <Play className="w-3 h-3 fill-white" />
-              <span>立即轉檔</span>
-            </button>
-          )}
         </div>
 
         {/* Pending File Items List */}

@@ -309,7 +309,6 @@ export default function App() {
               progressPercent={progressPercent}
               currentProcessingName={currentProcessingName}
               onFilesSelected={handleFilesSelected}
-              onLoadSamples={handleLoadSamples}
               onStartProcessing={handleStartProcessing}
               onDownloadZip={handleDownloadZip}
               onReset={handleReset}

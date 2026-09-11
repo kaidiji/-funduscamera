@@ -2,7 +2,6 @@ import React, { useRef, useState } from 'react';
 import { 
   UploadCloud, 
   FolderOpen, 
-  Sparkles, 
   Play, 
   Loader2, 
   Download, 
@@ -17,7 +16,6 @@ interface LeftControlPanelProps {
   progressPercent: number;
   currentProcessingName?: string;
   onFilesSelected: (files: File[]) => void;
-  onLoadSamples: () => void;
   onStartProcessing: () => void;
   onDownloadZip: () => void;
   onReset: () => void;
@@ -29,7 +27,6 @@ export const LeftControlPanel: React.FC<LeftControlPanelProps> = ({
   progressPercent,
   currentProcessingName,
   onFilesSelected,
-  onLoadSamples,
   onStartProcessing,
   onDownloadZip,
   onReset,
@@ -177,17 +174,6 @@ export const LeftControlPanel: React.FC<LeftControlPanelProps> = ({
           >
             <FolderOpen className="w-4 h-4" />
             <span>選擇本機檔案</span>
-          </button>
-
-          <button
-            type="button"
-            id="load-sample-btn-unified"
-            onClick={onLoadSamples}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-amber-50 text-amber-900 border border-amber-300 font-bold text-sm hover:bg-amber-100 shadow-xs transition-colors"
-            title="一鍵載入測試範例"
-          >
-            <Sparkles className="w-4 h-4 text-amber-600" />
-            <span>🧪 載入測試範例</span>
           </button>
         </div>
       </div>
