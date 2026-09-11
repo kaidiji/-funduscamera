@@ -181,9 +181,11 @@ export default function App() {
 
         } else {
           // ==================== 邏輯 2：非眼底鏡車拍攝 (檔名解析) ====================
-          // 目標檔名格式：_古建雄_OD_20260824.pdf (日期嚴格採用點擊轉檔當天)
+          // 目標檔名格式：Y0年年月月日日01_姓名_OD/OS.pdf (日期嚴格採用點擊轉檔當天)
           const todayDateStr = getFormattedDate(new Date());
-          const result = processFilenameFile(item.originalName, todayDateStr);
+          const serialNum = i + 1;
+          item.serialNumber = serialNum;
+          const result = processFilenameFile(item.originalName, todayDateStr, serialNum);
 
           item.extractedName = result.name;
           item.extractedEye = result.eye;
@@ -194,16 +196,16 @@ export default function App() {
             item.status = 'success';
             item.errorMessage = null;
 
-            // 🟢 [成功] -> 新檔名: _古建雄_OD_20260824.pdf
+            // 🟢 [成功] -> 新檔名: Y026091001_古建雄_OD.pdf
             addLog(
               'success',
-              `解析完成 [${item.originalName}] (姓名: ${result.name}, 眼別: ${result.eye}, 日期: ${result.dateStr})`,
+              `解析完成 [${item.originalName}] (姓名: ${result.name}, 眼別: ${result.eye}, 序號: ${serialNum})`,
               result.newName
             );
           } else {
             item.status = 'failed';
             item.errorMessage = result.errorReason || `格式不符 (姓名:${result.name || 'None'}, 眼別:${result.eye || 'None'})`;
-            item.newName = item.originalName;
+            item.newName = result.newName;
 
             // 🔴 [失敗] -> 格式不符 (姓名: 古建雄, 眼別: None)
             addLog(

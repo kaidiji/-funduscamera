@@ -24,6 +24,7 @@ export interface FileProcessingItem {
   rawExtractedText?: string | null;
   manualOverride: boolean;
   selectedForExport: boolean;
+  serialNumber?: number;
 }
 
 export type LogLevel = 'info' | 'success' | 'error' | 'warning';

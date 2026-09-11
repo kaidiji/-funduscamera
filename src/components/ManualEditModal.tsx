@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check, Edit3, ArrowRight } from 'lucide-react';
 import { FileProcessingItem, EyeSide, TabMode } from '../types';
-import { getFormattedDate } from '../utils/filenameParser';
+import { getFormattedDate, formatSerialCode } from '../utils/filenameParser';
 
 interface ManualEditModalProps {
   item: FileProcessingItem | null;
@@ -46,14 +46,17 @@ export const ManualEditModal: React.FC<ManualEditModalProps> = ({
         setPreviewFilename(cleanId ? `${cleanId}_[請填寫姓名].pdf` : `[請填寫身分證]_${cleanName || '未命名'}.pdf`);
       }
     } else {
-      // 邏輯 2：_姓名_眼別_日期.pdf (一律輸出為 .pdf)
+      // 邏輯 2：Y0年年月月日日01_姓名_OD/OS.pdf (一律輸出為 .pdf)
       const cleanName = nameValue.trim();
       const cleanEye = eyeValue || 'OD';
       const cleanDate = dateValue.trim() || getFormattedDate();
+      const serialNum = item.serialNumber || 1;
+      const serialPrefix = formatSerialCode(cleanDate, serialNum);
+
       if (cleanName && eyeValue) {
-        setPreviewFilename(`_${cleanName}_${cleanEye}_${cleanDate}.pdf`);
+        setPreviewFilename(`${serialPrefix}_${cleanName}_${cleanEye}.pdf`);
       } else {
-        setPreviewFilename(`_${cleanName || '[請填寫姓名]'}_${eyeValue || '[請選眼別]'}_${cleanDate}.pdf`);
+        setPreviewFilename(`${serialPrefix}_${cleanName || '[請填寫姓名]'}_${eyeValue || '[請選眼別]'}.pdf`);
       }
     }
   }, [idValue, nameValue, eyeValue, dateValue, item, activeTab]);
@@ -80,13 +83,16 @@ export const ManualEditModal: React.FC<ManualEditModalProps> = ({
       const cleanName = nameValue.trim();
       const cleanEye = eyeValue;
       const cleanDate = dateValue.trim() || getFormattedDate();
+      const serialNum = item.serialNumber || 1;
+      const serialPrefix = formatSerialCode(cleanDate, serialNum);
+
       if (cleanName && cleanEye) {
         isSuccess = true;
-        finalNewName = `_${cleanName}_${cleanEye}_${cleanDate}.pdf`;
+        finalNewName = `${serialPrefix}_${cleanName}_${cleanEye}.pdf`;
       } else {
         isSuccess = false;
         errorReason = `格式不符 (姓名:${cleanName || 'None'}, 眼別:${cleanEye || 'None'})`;
-        finalNewName = item.originalName.toLowerCase().endsWith('.pdf') ? item.originalName : `${item.originalName.replace(/\.[^/.]+$/, '')}.pdf`;
+        finalNewName = `${serialPrefix}_${cleanName || '未知姓名'}_${cleanEye || '未知眼別'}.pdf`;
       }
     }
 

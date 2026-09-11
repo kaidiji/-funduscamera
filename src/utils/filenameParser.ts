@@ -22,16 +22,48 @@ export function getFormattedDate(targetDate?: Date | number | string | null): st
 }
 
 /**
+ * 格式化為：Y0年年月月日日01 (9碼數字，後面兩個數字由1開始依序)
+ * 範例："20260910", 1 => "Y026091001"
+ */
+export function formatSerialCode(dateStr8: string, serialNumber: number): string {
+  let yy = '26';
+  let mm = '09';
+  let dd = '10';
+  
+  const clean = dateStr8.replace(/\D/g, ''); // 只保留數字
+  if (clean.length === 8) {
+    yy = clean.slice(2, 4);
+    mm = clean.slice(4, 6);
+    dd = clean.slice(6, 8);
+  } else if (clean.length === 6) {
+    yy = clean.slice(0, 2);
+    mm = clean.slice(2, 4);
+    dd = clean.slice(4, 6);
+  } else {
+    // 預設採用當前系統日期
+    const d = new Date();
+    yy = String(d.getFullYear()).slice(-2);
+    mm = String(d.getMonth() + 1).padStart(2, '0');
+    dd = String(d.getDate()).padStart(2, '0');
+  }
+  
+  const ss = String(serialNumber).padStart(2, '0');
+  return `Y0${yy}${mm}${dd}${ss}`;
+}
+
+/**
  * ==================== 邏輯 2：非眼底鏡車拍攝 (檔名解析) ====================
- * 目標檔名格式：_古建雄_OD_20260824.pdf (無論原始為 JPG、PNG 或是 PDF，改完檔名一律輸出為 .pdf)
+ * 目標檔名格式：Y0年年月月日日01_姓名_OD/OS.pdf
  * 
  * 1. 抓取姓名 (以 - 或 _ 切割取第一部分)
  * 2. 判斷眼別 (檔名包含「右」或「OD」為 OD；「左」或「OS」為 OS)
- * 3. 轉檔當天日期 (YYYYMMDD，採用點擊轉檔當天之系統日期)
+ * 3. 轉檔當天日期 (YYYYMMDD，採用點擊轉檔當天之系統日期，轉為 YYMMDD)
+ * 4. 序號 (從 1 開始依序遞增，並格式化為 2 位數，如 01, 02)
  */
 export function processFilenameFile(
   filename: string,
-  dateOverride?: string
+  dateOverride?: string,
+  serialNumber = 1
 ): FilenameParsedResult {
   const baseName = filename.replace(/\.[^/.]+$/, '');
 
@@ -48,12 +80,15 @@ export function processFilenameFile(
     eye = 'OS';
   }
 
-  // 3. 日期格式 YYYYMMDD (嚴格採用點擊轉檔當天日期)
+  // 3. 轉檔日期格式 YYYYMMDD
   const date_str = dateOverride || getFormattedDate(new Date());
 
-  if (name && eye && date_str) {
-    // 產出格式：_姓名_眼別_日期.pdf (一律輸出為 .pdf 格式)
-    const new_name = `_${name}_${eye}_${date_str}.pdf`;
+  // 4. 生成九碼序號前綴 Y0年年月月日日01
+  const serialPrefix = formatSerialCode(date_str, serialNumber);
+
+  if (name && eye) {
+    // 產出格式：Y0年年月月日日01_姓名_眼別.pdf (一律輸出為 .pdf)
+    const new_name = `${serialPrefix}_${name}_${eye}.pdf`;
     return {
       name,
       eye,
@@ -62,11 +97,13 @@ export function processFilenameFile(
       success: true,
     };
   } else {
+    // 即使失敗，也用預設名稱與序號拼裝，讓使用者知道如何補填
+    const new_name = `${serialPrefix}_${name || '未知姓名'}_${eye || '未知眼別'}.pdf`;
     return {
       name,
       eye,
       dateStr: date_str,
-      newName: `${baseName}.pdf`,
+      newName: new_name,
       success: false,
       errorReason: `格式不符 (姓名:${name || 'None'}, 眼別:${eye || 'None'})`,
     };
