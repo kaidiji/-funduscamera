@@ -13,18 +13,58 @@ export async function convertImageToPdfBlob(file: File | Blob): Promise<Blob> {
       const img = new Image();
       img.onload = () => {
         try {
+          // 建立 canvas 來將圖片重新繪製在白底上，並轉為標準且高相容性的 JPEG
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          if (!ctx) {
+            throw new Error('Canvas context not available');
+          }
+          
           const width = img.naturalWidth || img.width || 800;
           const height = img.naturalHeight || img.height || 600;
-          const orientation = width > height ? 'l' : 'p';
-
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          // 填入純白底色，防止 PNG 透明底變全黑或全白空白
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, width, height);
+          
+          // 繪製原始圖片
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // 導出為高相容性、經壓縮的 JPEG base64 字串
+          const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+          
+          // 建立 jsPDF 實例（採用標準 A4 紙張格式 210mm x 297mm，解決高解析度下像素縮放超出邊界的白頁問題）
           const doc = new jsPDF({
-            orientation,
-            unit: 'px',
-            format: [width, height],
-            hotfixes: ['px_scaling'],
+            orientation: width > height ? 'l' : 'p',
+            unit: 'mm',
+            format: 'a4',
           });
-
-          doc.addImage(dataUrl, 'JPEG', 0, 0, width, height, undefined, 'FAST');
+          
+          const pdfWidth = doc.internal.pageSize.getWidth();
+          const pdfHeight = doc.internal.pageSize.getHeight();
+          
+          // 計算等比例縮放比例，使圖片完美、滿版貼合 A4 頁面且置中
+          const imgRatio = width / height;
+          const pdfRatio = pdfWidth / pdfHeight;
+          
+          let renderWidth = pdfWidth;
+          let renderHeight = pdfHeight;
+          let x = 0;
+          let y = 0;
+          
+          if (imgRatio > pdfRatio) {
+            renderHeight = pdfWidth / imgRatio;
+            y = (pdfHeight - renderHeight) / 2;
+          } else {
+            renderWidth = pdfHeight * imgRatio;
+            x = (pdfWidth - renderWidth) / 2;
+          }
+          
+          doc.addImage(jpegDataUrl, 'JPEG', x, y, renderWidth, renderHeight, undefined, 'FAST');
           const pdfBlob = doc.output('blob');
           resolve(pdfBlob);
         } catch {
