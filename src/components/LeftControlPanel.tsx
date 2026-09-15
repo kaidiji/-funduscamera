@@ -163,7 +163,9 @@ export const LeftControlPanel: React.FC<LeftControlPanelProps> = ({
           點擊選擇檔案 或 拖曳至此
         </p>
         <p className="text-slate-500 text-xs sm:text-sm mb-3">
-          支援上傳 PDF 或 JPG/PNG 檔案，改名後一律輸出為 PDF 文件
+          {activeTab === 'FUNDUS_PDF' 
+            ? '支援上傳 PDF 或 JPG/PNG 檔案，改名後一律輸出為 PDF 文件'
+            : '支援上傳 PDF 或 JPG/PNG 檔案，改名後一律輸出為 JPG 圖片'}
         </p>
 
         <div className="flex items-center gap-2 flex-wrap justify-center" onClick={(e) => e.stopPropagation()}>
