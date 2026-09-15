@@ -46,7 +46,7 @@ export const ManualEditModal: React.FC<ManualEditModalProps> = ({
         setPreviewFilename(cleanId ? `${cleanId}_[請填寫姓名].pdf` : `[請填寫身分證]_${cleanName || '未命名'}.pdf`);
       }
     } else {
-      // 邏輯 2：Y0年年月月日日01_姓名_OD/OS.pdf (一律輸出為 .pdf)
+      // 邏輯 2：Y0年年月月日日01_姓名_OD/OS.jpg (一律輸出為 .jpg)
       const cleanName = nameValue.trim();
       const cleanEye = eyeValue || 'OD';
       const cleanDate = dateValue.trim() || getFormattedDate();
@@ -54,9 +54,9 @@ export const ManualEditModal: React.FC<ManualEditModalProps> = ({
       const serialPrefix = formatSerialCode(cleanDate, serialNum);
 
       if (cleanName && eyeValue) {
-        setPreviewFilename(`${serialPrefix}_${cleanName}_${cleanEye}.pdf`);
+        setPreviewFilename(`${serialPrefix}_${cleanName}_${cleanEye}.jpg`);
       } else {
-        setPreviewFilename(`${serialPrefix}_${cleanName || '[請填寫姓名]'}_${eyeValue || '[請選眼別]'}.pdf`);
+        setPreviewFilename(`${serialPrefix}_${cleanName || '[請填寫姓名]'}_${eyeValue || '[請選眼別]'}.jpg`);
       }
     }
   }, [idValue, nameValue, eyeValue, dateValue, item, activeTab]);
@@ -88,11 +88,11 @@ export const ManualEditModal: React.FC<ManualEditModalProps> = ({
 
       if (cleanName && cleanEye) {
         isSuccess = true;
-        finalNewName = `${serialPrefix}_${cleanName}_${cleanEye}.pdf`;
+        finalNewName = `${serialPrefix}_${cleanName}_${cleanEye}.jpg`;
       } else {
         isSuccess = false;
         errorReason = `格式不符 (姓名:${cleanName || 'None'}, 眼別:${cleanEye || 'None'})`;
-        finalNewName = `${serialPrefix}_${cleanName || '未知姓名'}_${cleanEye || '未知眼別'}.pdf`;
+        finalNewName = `${serialPrefix}_${cleanName || '未知姓名'}_${cleanEye || '未知眼別'}.jpg`;
       }
     }
 
@@ -143,7 +143,7 @@ export const ManualEditModal: React.FC<ManualEditModalProps> = ({
         {/* Live Preview Box */}
         <div className="mt-4 p-3.5 bg-blue-50/70 rounded-xl border border-blue-200">
           <span className="text-[11px] font-bold text-blue-900 uppercase tracking-wider block mb-1">
-            預計改名後新檔名 (輸出為 PDF)
+            預計改名後新檔名 (輸出為 {activeTab === 'FUNDUS_PDF' ? 'PDF' : 'JPG'})
           </span>
           <div className="flex items-center gap-2 font-mono text-sm sm:text-base font-bold text-blue-900 break-all">
             <ArrowRight className="w-4 h-4 text-blue-600 shrink-0" />

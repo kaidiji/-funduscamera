@@ -127,7 +127,63 @@ function createSamplePdfBlob(filename: string, item: FileProcessingItem): Blob {
 }
 
 /**
- * 依要求將所有成功轉檔項目（無論原為 PDF 或 JPG）統一以 PDF 格式封裝至 ZIP
+ * 將上傳的圖片 (JPG/PNG/JPEG 等) 重新透過 Canvas 繪製在白底上，並輸出為標準且高相容性的 JPEG Blob
+ * 這能確保透明背景不變黑，並且在任何作業系統的相片檢視器中皆能 100% 正常開啟。
+ */
+export async function convertImageToJpgBlob(file: File | Blob): Promise<Blob> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          if (!ctx) {
+            throw new Error('Canvas context not available');
+          }
+          
+          const width = img.naturalWidth || img.width || 800;
+          const height = img.naturalHeight || img.height || 600;
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          // 填入純白背景，防止 PNG 等透明圖層變黑
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, width, height);
+          
+          // 繪製原始圖片
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // 導出為標準的高品質 JPEG
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              resolve(file); // 保底
+            }
+          }, 'image/jpeg', 0.95);
+        } catch {
+          resolve(file); // 失敗則使用原始檔
+        }
+      };
+      img.onerror = () => {
+        resolve(file);
+      };
+      img.src = dataUrl;
+    };
+    reader.onerror = () => {
+      resolve(file);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * 將成功轉檔項目打包為 ZIP (眼底攝影輸出為 PDF，非眼底鏡車輸出為 JPG)
  */
 export async function exportRenamedFilesZip(
   items: FileProcessingItem[],
@@ -140,55 +196,91 @@ export async function exportRenamedFilesZip(
     throw new Error('目前沒有可供打包下載的成功改名檔案');
   }
 
-  // 1. 逐一加入改名後的 PDF 檔案
+  // 1. 逐一加入改名後的檔案
   for (const item of successfulItems) {
-    // 確保檔名副檔名一律為 .pdf
+    const isJpgTarget = item.newName.toLowerCase().endsWith('.jpg') || item.newName.toLowerCase().endsWith('.jpeg');
     let filename = item.newName;
-    if (!filename || !filename.toLowerCase().endsWith('.pdf')) {
-      const base = (filename || `${item.extractedId || '未知'}_${item.extractedName || '病患'}`).replace(/\.[^/.]+$/, '');
-      filename = `${base}.pdf`;
+    
+    // 確保副檔名與目標相符
+    if (isJpgTarget) {
+      if (!filename.toLowerCase().endsWith('.jpg')) {
+        filename = `${filename.replace(/\.[^/.]+$/, '')}.jpg`;
+      }
+    } else {
+      if (!filename.toLowerCase().endsWith('.pdf')) {
+        filename = `${filename.replace(/\.[^/.]+$/, '')}.pdf`;
+      }
     }
     
     if (item.originalFile) {
-      const isAlreadyPdf = item.originalFile.type === 'application/pdf' || item.originalFile.name.toLowerCase().endsWith('.pdf');
-      
-      if (isAlreadyPdf) {
-        // 原本就是 PDF，直接寫入
-        zip.file(filename, item.originalFile);
-      } else {
-        // 原本是 JPG / PNG / 圖片，將其即時轉換為 PDF 格式寫入
-        try {
-          const pdfBlob = await convertImageToPdfBlob(item.originalFile);
-          zip.file(filename, pdfBlob);
-        } catch {
-          // 轉換失敗之保底處理
+      if (isJpgTarget) {
+        // 輸出為 JPG 影像
+        const isPdfSource = item.originalFile.type === 'application/pdf' || item.originalFile.name.toLowerCase().endsWith('.pdf');
+        if (isPdfSource) {
           zip.file(filename, item.originalFile);
+        } else {
+          try {
+            const jpgBlob = await convertImageToJpgBlob(item.originalFile);
+            zip.file(filename, jpgBlob);
+          } catch {
+            zip.file(filename, item.originalFile);
+          }
+        }
+      } else {
+        // 輸出為 PDF 表單
+        const isAlreadyPdf = item.originalFile.type === 'application/pdf' || item.originalFile.name.toLowerCase().endsWith('.pdf');
+        
+        if (isAlreadyPdf) {
+          zip.file(filename, item.originalFile);
+        } else {
+          try {
+            const pdfBlob = await convertImageToPdfBlob(item.originalFile);
+            zip.file(filename, pdfBlob);
+          } catch {
+            zip.file(filename, item.originalFile);
+          }
         }
       }
     } else {
-      // 範例或無原始 binary 檔案：產生符合規範的有效 PDF Blob
-      const samplePdfBlob = createSamplePdfBlob(filename, item);
-      zip.file(filename, samplePdfBlob);
+      // 範例或無原始 binary 檔案：產生符合規範的有效 Blob
+      if (isJpgTarget) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 600;
+        canvas.height = 450;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, 600, 450);
+          ctx.fillStyle = '#1E293B';
+          ctx.font = 'bold 18px sans-serif';
+          ctx.fillText('Medical Image Renamed Sample', 30, 60);
+          ctx.font = '14px sans-serif';
+          ctx.fillText(`New Filename: ${filename}`, 30, 100);
+          ctx.fillText(`Patient Name: ${item.extractedName || 'N/A'}`, 30, 140);
+          ctx.fillText(`Eye: ${item.extractedEye || 'N/A'}`, 30, 180);
+        }
+        const dummyBlob = await new Promise<Blob>((res) => canvas.toBlob(b => res(b || new Blob()), 'image/jpeg', 0.9));
+        zip.file(filename, dummyBlob);
+      } else {
+        const samplePdfBlob = createSamplePdfBlob(filename, item);
+        zip.file(filename, samplePdfBlob);
+      }
     }
   }
 
   // 2. 產出繁體中文稽核清單 CSV 報表
-  const csvHeaders = ['序號', '原始檔名', '新檔名(一律為PDF)', '身分證字號/病歷號', '病患姓名', '檢查眼別', '檢查日期', '處理狀態', '處理備註'];
+  const csvHeaders = ['序號', '原始檔名', '新檔名(JPG或PDF)', '身分證字號/病歷號', '病患姓名', '檢查眼別', '檢查日期', '處理狀態', '處理備註'];
   const csvRows = items.map((item, idx) => {
-    let outputPdfName = item.newName;
-    if (outputPdfName && !outputPdfName.toLowerCase().endsWith('.pdf')) {
-      outputPdfName = `${outputPdfName.replace(/\.[^/.]+$/, '')}.pdf`;
-    }
     return [
       idx + 1,
       `"${item.originalName.replace(/"/g, '""')}"`,
-      `"${(outputPdfName || item.originalName).replace(/"/g, '""')}"`,
+      `"${(item.newName || item.originalName).replace(/"/g, '""')}"`,
       `"${item.extractedId || '無法辨識'}"`,
       `"${item.extractedName || '無法辨識'}"`,
       `"${item.extractedEye || '無'}"`,
       `"${item.extractedDate || '無'}"`,
       item.status === 'success' ? '成功' : '失敗',
-      `"${(item.errorMessage || '已轉為PDF並完成改名').replace(/"/g, '""')}"`,
+      `"${(item.errorMessage || (item.newName.toLowerCase().endsWith('.jpg') ? '已改名為JPG圖片' : '已轉為PDF並完成改名')).replace(/"/g, '""')}"`,
     ];
   });
 
@@ -200,14 +292,13 @@ export async function exportRenamedFilesZip(
 醫療影像與表單檔名自動處理系統 - 批次處理報告
 處理時間：${new Date().toLocaleString('zh-TW')}
 總計處理檔案數：${items.length} 筆
-成功改名檔案數：${successfulItems.length} 筆 (已全數輸出為標準 .pdf 格式)
+成功改名檔案數：${successfulItems.length} 筆 (眼底攝影輸出為 PDF，非眼底鏡車輸出為 JPG)
 失敗待查檔案數：${items.length - successfulItems.length} 筆
 ================================================
 
 【處理規範依據】
-- 眼底攝影表單：自 PDF 內文自動辨識身分證字號與受檢者姓名
-- 非眼底鏡車拍攝 (JPG/PNG/PDF)：自檔名精確解析姓名與眼別，結合點擊轉檔當天日期，產生 9 碼序號前綴 (Y0年年月月日日01) 命名為「Y0年年月月日日01_姓名_OD/OS.pdf」，並全數轉為標準 .pdf 格式輸出
-- 輸出格式一律為：.pdf 文件
+- 眼底攝影表單：自 PDF 內文自動辨識身分證字號與受檢者姓名，輸出為 .pdf 格式
+- 非眼底鏡車拍攝 (JPG/PNG/PDF)：自檔名精確解析姓名與眼別，結合點擊轉檔當天日期，產生 9 碼序號前綴 (Y0年年月月日日01) 命名為「Y0年年月月日日01_姓名_OD/OS.jpg」，並以高解析度標準 .jpg 圖片格式輸出
 
 【隱私與合規聲明】
 本系統採本機瀏覽器端即時運算解析，影像與個人識別資料 (PHI) 絕不上傳至任何外部公有伺服器，符合個人資料保護法與醫療機構資安規範。

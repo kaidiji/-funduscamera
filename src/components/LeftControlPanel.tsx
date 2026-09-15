@@ -22,6 +22,7 @@ interface LeftControlPanelProps {
 }
 
 export const LeftControlPanel: React.FC<LeftControlPanelProps> = ({
+  activeTab,
   appState,
   items,
   progressPercent,
@@ -249,7 +250,7 @@ export const LeftControlPanel: React.FC<LeftControlPanelProps> = ({
               style={{ backgroundColor: '#2E7D32' }}
             >
               <Download className="w-5 h-5" />
-              <span>📥 下載已改名打包檔 ({successCount} 件 PDF .zip)</span>
+              <span>📥 下載已改名打包檔 ({successCount} 件 {activeTab === 'FUNDUS_PDF' ? 'PDF' : 'JPG'} .zip)</span>
             </button>
 
             {/* Reset / New Batch Button */}

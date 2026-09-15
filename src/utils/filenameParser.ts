@@ -87,8 +87,8 @@ export function processFilenameFile(
   const serialPrefix = formatSerialCode(date_str, serialNumber);
 
   if (name && eye) {
-    // 產出格式：Y0年年月月日日01_姓名_眼別.pdf (一律輸出為 .pdf)
-    const new_name = `${serialPrefix}_${name}_${eye}.pdf`;
+    // 產出格式：Y0年年月月日日01_姓名_眼別.jpg (非眼底鏡一律輸出為 .jpg)
+    const new_name = `${serialPrefix}_${name}_${eye}.jpg`;
     return {
       name,
       eye,
@@ -98,7 +98,7 @@ export function processFilenameFile(
     };
   } else {
     // 即使失敗，也用預設名稱與序號拼裝，讓使用者知道如何補填
-    const new_name = `${serialPrefix}_${name || '未知姓名'}_${eye || '未知眼別'}.pdf`;
+    const new_name = `${serialPrefix}_${name || '未知姓名'}_${eye || '未知眼別'}.jpg`;
     return {
       name,
       eye,
